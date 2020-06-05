@@ -47,178 +47,180 @@ import "DPI-C" function byte c_con_read();
 
 module uart_dpi #(
 `ifdef UART_DPI_FIXED_BAUD
-  parameter BAUD = 'x,
-  parameter FREQ = 'x,
+	parameter BAUD = 'x,
+	parameter FREQ = 'x,
 `else
-  parameter CYCLES_PER_SYMBOL = 16,
+	parameter CYCLES_PER_SYMBOL = 16,
 `endif
-  parameter string NAME = "uart0")
- (
-  input      clk,
-  input      rst,
-  output reg tx,
-  input      rx
- );
+	parameter string NAME = "uart0")
+(
+	input		clk,
+	input		rst,
+	output reg	tx,
+	input		rx
+);
 
-  /* TX/RX state */
-  parameter IDLE   = 3'b000;
-  parameter START  = 3'b001; /* Start bit seen */
-  parameter DATA   = 3'b010;
-  parameter PARITY = 3'b011;
-  parameter STOP   = 3'b100; /* Wait stop bit */
+/* TX/RX state */
+parameter IDLE   = 3'b000;
+parameter START  = 3'b001; /* Start bit seen */
+parameter DATA   = 3'b010;
+parameter PARITY = 3'b011;
+parameter STOP   = 3'b100; /* Wait stop bit */
 
 `ifdef UART_DPI_FIXED_BAUD
-  localparam CYCLES_PER_SYMBOL = FREQ/BAUD;
+localparam CYCLES_PER_SYMBOL = FREQ/BAUD;
 `endif
 
-  initial begin
-    c_con_init();
-  end
+initial begin
+	c_con_init();
+end
 
-  /* TX */
-  reg [2:0] txstate;
-  int txcount;
-  int txcycle;
-  reg [7:0] txsymbol;
-  reg txpoll;
-  reg txdata;
+/* TX */
+reg [2:0] txstate;
+int txcount;
+int txcycle;
+reg [7:0] txsymbol;
+reg txpoll;
+reg txdata;
 
-  always_comb begin
-    case (txstate)
-      IDLE : begin
-        if (txpoll) begin
-          if (c_con_readable()) begin
-            txsymbol = c_con_read();
-            txdata = 1'b1;
-          end
-        end else begin
-          txdata = 1'b0;
-        end
-        tx = 1'b1;
-      end
-      START : begin
-        txdata = 1'b1;
-        tx = 1'b0;
-      end
-      DATA : begin
-        txdata = 1'b1;
-        tx = txsymbol[txcount];
-      end
-      STOP : begin
-        txdata = 1'b1;
-        tx = 1'b1;
-      end
-    endcase
-  end
+always_comb begin
+	case (txstate)
+	IDLE : begin
+		if (txpoll) begin
+			if (c_con_readable()) begin
+				txsymbol = c_con_read();
+				txdata = 1'b1;
+			end
+		end else begin
+			txdata = 1'b0;
+		end
+		tx = 1'b1;
+	end
+	START : begin
+		txdata = 1'b1;
+		tx = 1'b0;
+	end
+	DATA : begin
+		txdata = 1'b1;
+		tx = txsymbol[txcount];
+	end
+	STOP : begin
+		txdata = 1'b1;
+		tx = 1'b1;
+	end
+	endcase
+end
 
-  always@(posedge clk or negedge rst) begin
-    if (~rst) begin
-      txstate <= IDLE;
-      txcount <= 0;
-      txcycle <= 0;
-      txpoll <= 1'b0;
-    end else begin
-      case (txstate)
-        IDLE : begin
-          if (txdata) begin
-            txstate <= START;
-          end else begin
-            txpoll <= c_con_readable();
-          end
-          txcycle <= 0;
-        end
-        START : begin
-          txpoll <= 1'b0;
-          if (txcycle == CYCLES_PER_SYMBOL - 1) begin
-            txstate <= DATA;
-            txcount <= 0;
-            txcycle <= 0;
-          end else begin
-            txcycle <= txcycle + 1;
-          end
-        end
-        DATA : begin
-          if (txcycle == CYCLES_PER_SYMBOL - 1) begin
-            if (txcount == 7) begin
-              txstate <= STOP;
-            end
-            txcount <= txcount + 1;
-            txcycle <= 0;
-          end else begin
-            txcycle <= txcycle + 1;
-          end
-        end
-        STOP : begin
-          if (txcycle == CYCLES_PER_SYMBOL - 1) begin
-            txstate <= IDLE;
-          end else begin
-            txcycle <= txcycle + 1;
-          end
-        end
-      endcase
-    end
-  end
+always@(posedge clk or negedge rst) begin
+	if (~rst) begin
+		txstate <= IDLE;
+		txcount <= 0;
+		txcycle <= 0;
+		txpoll <= 1'b0;
+	end else begin
+		case (txstate)
+		IDLE : begin
+			if (txdata) begin
+				txstate <= START;
+			end else begin
+				txpoll <= c_con_readable();
+			end
+			txcycle <= 0;
+		end
+		START : begin
+			txpoll <= 1'b0;
+			if (txcycle == CYCLES_PER_SYMBOL - 1) begin
+				txstate <= DATA;
+				txcount <= 0;
+				txcycle <= 0;
+			end else begin
+				txcycle <= txcycle + 1;
+			end
+		end
+		DATA : begin
+			if (txcycle == CYCLES_PER_SYMBOL - 1) begin
+				if (txcount == 7) begin
+					txstate <= STOP;
+				end
+				txcount <= txcount + 1;
+				txcycle <= 0;
+			end else begin
+				txcycle <= txcycle + 1;
+			end
+		end
+		STOP : begin
+			if (txcycle == CYCLES_PER_SYMBOL - 1) begin
+				txstate <= IDLE;
+			end else begin
+				txcycle <= txcycle + 1;
+			end
+		end
+		endcase
+	end
+end
 
-  /* RX */
-  reg [2:0] rxstate;
-  int rxcount;
-  int rxcycle;
-  reg [7:0] rxsymbol;
+/* RX */
+reg [2:0] rxstate;
+int rxcount;
+int rxcycle;
+reg [7:0] rxsymbol;
 
-  always@(posedge clk or negedge rst) begin
-    if (~rst) begin
-      rxstate <= IDLE;
-      rxcycle <= 0;
-      rxcount <= 0;
-    end else begin
-      case (rxstate)
-        IDLE : begin
-          if (~rx) begin
-            rxstate <= START;
-            rxcycle <= CYCLES_PER_SYMBOL/2 - 1;
-          end else begin
-            rxsymbol <= 8'bxxxxxxxx;
-            rxcycle <= 0;
-          end
-        end
-        START : begin
-          if (rxcycle == CYCLES_PER_SYMBOL - 1) begin
-            if (rx) begin
-              rxstate <= IDLE;
-            end else begin
-              rxstate <= DATA;
-              rxcount <= 0;
-            end
-            rxcycle <= 0;
-          end else begin
-            rxcycle <= rxcycle + 1;
-          end
-        end
-        DATA : begin
-          if (rxcycle == CYCLES_PER_SYMBOL - 1) begin
-            if (rxcount == 8) begin
-              rxstate <= STOP;
-            end
-            rxsymbol[rxcount - 1] <= rx;
-            rxcycle <= 0;
-          end else begin
-            if (rxcount == 0) begin
-              rxcount <= rxcount + 1;
-            end
-            rxcycle <= rxcycle + 1;
-          end
-        end
-        STOP : begin
-          if (rxcycle == CYCLES_PER_SYMBOL - 1) begin
-            if (rx) begin
-              rxstate <= IDLE;
-              if (c_con_writable()) begin
-                c_con_write(rxsymbol);
-              end
-          end
-        end else begin
-          rxcycle <= rxcycle + 1;
-        end
-      endcase
-    end
-  end
+always@(posedge clk or negedge rst) begin
+	if (~rst) begin
+		rxstate <= IDLE;
+		rxcycle <= 0;
+		rxcount <= 0;
+	end else begin
+		case (rxstate)
+		IDLE : begin
+			if (~rx) begin
+				rxstate <= START;
+				rxcycle <= CYCLES_PER_SYMBOL/2 - 1;
+			end else begin
+				rxsymbol <= 8'bxxxxxxxx;
+				rxcycle <= 0;
+			end
+		end
+		START : begin
+			if (rxcycle == CYCLES_PER_SYMBOL - 1) begin
+				if (rx) begin
+					rxstate <= IDLE;
+				end else begin
+					rxstate <= DATA;
+					rxcount <= 0;
+				end
+				rxcycle <= 0;
+			end else begin
+				rxcycle <= rxcycle + 1;
+			end
+		end
+		DATA : begin
+			if (rxcycle == CYCLES_PER_SYMBOL - 1) begin
+				if (rxcount == 8) begin
+					rxstate <= STOP;
+				end
+				rxsymbol[rxcount - 1] <= rx;
+				rxcycle <= 0;
+			end else begin
+				if (rxcount == 0) begin
+					rxcount <= rxcount + 1;
+				end
+				rxcycle <= rxcycle + 1;
+			end
+		end
+		STOP : begin
+			if (rxcycle == CYCLES_PER_SYMBOL - 1) begin
+				if (rx) begin
+					rxstate <= IDLE;
+					if (c_con_writable()) begin
+						c_con_write(rxsymbol);
+					end
+				end
+			end else begin
+			rxcycle <= rxcycle + 1;
+		end
+		endcase
+	end
+end
+
+endmodule
