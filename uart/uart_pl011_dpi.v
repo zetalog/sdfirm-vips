@@ -49,8 +49,8 @@ import "DPI-C" function byte c_con_read();
 `define ACE_ADDR_WIDTH	6
 `define ACE_DATA_BYTES	(`ACE_DATA_WIDTH/8)
 
-`define ACE_BYTE(r, b)	(((r) & (`ACE_DATA_BYTES-1)) + (b))
-`define ACE_BIT(r, b)	((`ACE_BYTE(r, ((b) / 8)) * 8) + ((b) % 8))
+`define ACE_BYTE(r, b)	(((r) & (`ACE_DATA_BYTES-1)) + ((b) / 8))
+`define ACE_BIT(r, b)	((`ACE_BYTE((r), (b)) * 8) + ((b) % 8))
 
 module uart_pl011_dpi(
 	// Clocks and resets

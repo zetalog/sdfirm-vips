@@ -1,5 +1,5 @@
-
-                              SDFIRM VIPs
+SDFIRM VIPs
+===============
 
 This repository dipicts sdfirm IC verification methodology.
 
@@ -9,16 +9,21 @@ sdfirm, and sometimes developers need a debuggng facility to address sdfirm
 issues. The VCS bench may connect to sdfirm provided verification IPs to
 achieve various verification purpose:
 
-1. CPU verification
+CPU verification
+--------------------
    In this environment, CPUs connects to cluster bus (e.x., ACE), and the
    only IRQ source is the timer. Then you should use CONFIG_SYS_RT in
    sdfirm and connects uart_pl01x_dpi.v on the test bench.
-2. IP verification
+
+IP verification
+-------------------
    In this environment, bus IO IPs need to be provided to implement sdfirm
    IO APIs (__raw_readx()/__raw_writex()), sdfirm can simply use host
    standard input/output. IRQs cannot be tested, thus you should use
    CONFIG_SYS_NOIRQ in sdfirm.
-3. SoC verification
+
+SoC verification
+--------------------
    In this environment, sdfirm runs on a target CPU model and SoC may
    provide UART IRQs. Then you should use CONFIG_SYS_IRQ in sdfirm and
    connects uart_vip.v on the test bench if you have a real UART model
