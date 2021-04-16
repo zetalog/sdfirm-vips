@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # Catch the last frequency
-freq=`cat logs/run.log | sed -n 's/^clock_mon_vip\: time =\s\+\([0-9]\+\)ns\s\+'$1' = \([0-9\.]\+\)MHz/\2/p' | tail -n 1`
+freq=`cat logs/run.log | sed -n 's/^clock_mon_vip\: time =\s*\([0-9]\+\)ns\s\+'$1' = \([0-9\.]\+\)MHz/\2/p' | tail -n 1`
 freq_max=`echo "$freq" | awk '{printf("%0.3f\n",$1+$1/200)}'`
 freq_min=`echo "$freq" | awk '{printf("%0.3f\n",$1-$1/200)}'`
 
