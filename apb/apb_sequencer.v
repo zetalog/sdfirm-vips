@@ -15,6 +15,24 @@ wire pslverr;
 localparam PCLK_CYCLE = 8000;	// 125MHz
 parameter HALF_PCLK_CYCLE = PCLK_CYCLE/2;
 
+reg [63:0] pcount = 0;
+
+always @(posedge pclk) begin
+	pcount <= pcount + 1'h1;
+end
+
+export "DPI-C" task apb_count;
+task apb_count(output int rcount); begin
+`ifdef APB_COUNTER_DEBUG
+	$display("APB V: TSC: %08h", pcount);
+`endif
+	#PCLK_CYCLE;
+	#PCLK_CYCLE;
+	rcount = pcount[31:0];
+	#PCLK_CYCLE;
+	#PCLK_CYCLE;
+end endtask
+
 export "DPI-C" task apb_write;
 task apb_write(input int addr, input int wdata); begin
 `ifdef APB_SEQUENCER_DEBUG
@@ -49,6 +67,11 @@ task apb_read(input int addr, output int rdata); begin
 `endif
 end endtask
 
+export "DPI-C" task apb_finish;
+task apb_finish(); begin
+	$finish();
+end endtask
+
 import "DPI-C" context task sdfirm_dpi_init();
 initial begin
 	pclk = 1'b0;
@@ -58,7 +81,6 @@ initial begin
 	pwrite = 1'b0;
 	psel = 1'b0;
 	pwdata = 32'b0;
-
 
 	#(700 * PCLK_CYCLE)
 	presetn = 1'b1;
@@ -73,3 +95,5 @@ end
 always begin
 	#HALF_PCLK_CYCLE pclk = ~pclk;
 end
+
+endmodule
